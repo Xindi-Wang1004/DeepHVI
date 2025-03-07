@@ -1,6 +1,7 @@
+*.csv filter=lfs diff=lfs merge=lfs -text
+*.faa filter=lfs diff=lfs merge=lfs -text
+data/** filter=lfs diff=lfs merge=lfs -text
 data/S.csv filter=lfs diff=lfs merge=lfs -text
 data/SH_SV.csv filter=lfs diff=lfs merge=lfs -text
 data/inference_processed.csv filter=lfs diff=lfs merge=lfs -text
 data/ncbi_dataset/data/A/protein.faa filter=lfs diff=lfs merge=lfs -text
-*.csv filter=lfs diff=lfs merge=lfs -text
-*.faa filter=lfs diff=lfs merge=lfs -text
