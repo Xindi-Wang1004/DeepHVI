@@ -561,22 +561,7 @@ def start_cls_train():
 
 if __name__ == '__main__':
     # start_cls_train()
-
-    ####### 测试集推理 #########
-    # model_path: 分类模型权重
-    # output_file： 推理结果保存的文件夹
-    # csv_file 数据集文件
-    # fold_index fold 下标
-    # begin
-    # inference(model_path='model/model_dict/best_cls_model_fold_0.pt', output_file='inference_results.csv',
-    #           csv_file='data/SH_SV_feature_with_vectors_0.5.csv', fold_index=0)
-    # end
-    ####### 测试集推理 #########
-
-    # 跨模态重建 #
-    # cross_modal_generation_main()
-    # 跨模态重建 #
-
+    
     ######## 单样本推理 ###############
     # embedding 的数据在 model/model_embedding 文件夹中
     # SH_SV_embedding_output_matrix.pt
@@ -593,12 +578,6 @@ if __name__ == '__main__':
     # probability = infer_single_sample(model_path='model/model_dict/best_cls_model_fold_3.pt',
     #                                   data=data, device='cuda')
     # print("相关性的概率为：", probability)
-    # # end
-    ######## 单样本推理 ###############
 
-    ###
-    # 增加所有文件的日志保存功能，将控制台的日志重定向到日志文件中
-    # 模态补齐任务的tmo-net 的预训练权重，适配到 模态生成中去
-    # 增加 完整的sh 前ntoken 的sv补全，后ntoken 补全，增加完整的sv 前ntoken sh补全，后ntoken sh 补全
-    # 将二分类任务的 0，1 修改为，概率值：话术：相关性的概率为：，
-    ###
+
+    
