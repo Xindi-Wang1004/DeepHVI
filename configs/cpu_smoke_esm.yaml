@@ -1,0 +1,25 @@
+# Only for code verification on CPU. Override --pairs and --out explicitly.
+run:
+  name: cpu_smoke_esm
+  device: cpu
+  seed: 42
+data:
+  esm:
+    backend: esm2
+    pooling: attention_mean
+    max_length: 1024
+    batch_size: 2
+  splits:
+    protocol: paper
+    n_folds: 3
+    test_fraction: 0.2
+model:
+  hidden_dim: [32, 16, 8]
+  latent_dim: 8
+  classifier_hidden: [16, 8]
+train_pretrain:
+  epochs: 1
+  batch_size: 8
+train_classifier:
+  epochs: 1
+  batch_size: 8

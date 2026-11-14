@@ -1,0 +1,47 @@
+# Legacy-code profile: reproduces the released script's data protocol and
+# numerical conventions. This is NOT the paper protocol and must not be used
+# for paper results.
+#
+# - 10-fold KFold without shuffling, fold 3 only.
+# - Validation fold reported as the test set (unbiased? no).
+# - Mean pooling over every position, padding included.
+# - Log-standard-deviation parameters and sum-reduced KL.
+#
+# The released code's unused 1e-4 reconstruction term is recorded here for
+# reference; the refactored training loop does not silently apply it.
+
+run:
+  name: legacy
+  deterministic: false
+
+data:
+  esm:
+    backend: esm2
+    pooling: naive_mean
+    local_files_only: true
+  splits:
+    protocol: legacy
+    legacy_fold_index: 3
+    legacy_n_folds: 10
+
+model:
+  legacy_compat: true
+
+loss:
+  contrastive_weight: 0.0
+  classifier_recon_weight: 1.0e-4
+  kl_reduction: sum
+  logvar_param: logstd
+
+train_pretrain:
+  epochs: 10
+  batch_size: 16
+  lr: 1.0e-4
+
+train_classifier:
+  epochs: 30
+  batch_size: 16
+  lr: 1.0e-4
+  encoder_lr_scale: 1.0
+  monitor: val_loss
+  drop_last_train: true

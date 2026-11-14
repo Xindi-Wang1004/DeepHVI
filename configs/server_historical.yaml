@@ -1,0 +1,8 @@
+# Historical server split protocol only; not an independent benchmark.
+# The supplied historical inference script evaluated its TRAIN loader.
+data:
+  splits:
+    protocol: server_historical
+    legacy_fold_index: 3  # zero-based, matching the server loader
+    legacy_n_folds: 10
+    seed: 42

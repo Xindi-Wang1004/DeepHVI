@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "root": "data",
+  "manifest_sha256": "b6b0c00cab7aeacb5898a3b330ace1505ac15f2e031c633d3e0d7236a03cc6c7",
+  "max_archive_bytes": 99614720,
+  "packages": [
+    {
+      "path": "resources-archives.tar.gz",
+      "size_bytes": 87517478,
+      "sha256": "d5ab269fa1e9e031a97f0297341295c991d535e45de8d13b2a06bcff75143103",
+      "members": [
+        "archives/data.7z"
+      ]
+    },
+    {
+      "path": "resources-auxiliary.tar.gz",
+      "size_bytes": 58934885,
+      "sha256": "894617dbb901fabd69c92cd06d315b8862a4d61fa56bceab5e26fdde2795a682",
+      "members": [
+        "auxiliary/S.csv",
+        "auxiliary/SH_SV_feature_with_vectors_partial.csv",
+        "auxiliary/human_virus_test.csv",
+        "auxiliary/inference_processed.csv"
+      ]
+    },
+    {
+      "path": "resources-cache.tar.gz",
+      "size_bytes": 11095251,
+      "sha256": "3faf2ec1f7f206f083e9b79376aa004169e3234b25a57b61adecc7d90ce92062",
+      "members": [
+        "cache/seq_emb_cache.pt"
+      ]
+    },
+    {
+      "path": "resources-configs.tar.gz",
+      "size_bytes": 1827,
+      "sha256": "78b5fb66e5c069b8b90c13779e9f2ffe7346bacffba1118aa126c22a0e69a25c",
+      "members": [
+        "configs/cpu_smoke_esm.yaml",
+        "configs/default.yaml",
+        "configs/demo_cpu.yaml",
+        "configs/legacy_code.yaml",
+        "configs/server_historical.yaml",
+        "configs/server_inference.yaml"
+      ]
+    },
+    {
+      "path": "resources-examples.tar.gz",
+      "size_bytes": 16777,
+      "sha256": "838849d333677d4a43783c65701fcdef7246cf9066facc6459a843113d6ae799",
+      "members": [
+        "examples/expected_outputs/cached_pairs.csv",
+        "examples/expected_outputs/new_pairs.csv",
+        "examples/historical/inference_results_sample.csv",
+        "examples/inputs/cached_pairs.csv",
+        "examples/inputs/cpu_smoke_pairs.csv",
+        "examples/inputs/new_pairs.csv"
+      ]
+    },
+    {
+      "path": "resources-models-esm2.tar.gz",
+      "size_bytes": 18755769,
+      "sha256": "a4713ef1c2b7d3e1fdf331c78966b5723ab971f7dda92a6b0a621bfa87f68fec",
+      "members": [
+        "models/esm2/README.md",
+        "models/esm2/config.json",
+        "models/esm2/model.safetensors",
+        "models/esm2/special_tokens_map.json",
+        "models/esm2/tokenizer_config.json",
+        "models/esm2/vocab.txt"
+      ]
+    },
+    {
+      "path": "resources-models-original.tar.gz",
+      "size_bytes": 63621735,
+      "sha256": "1f1cef1bff5982f7cfd6345630b4be0d1bb6023211e3bb07b58ee60a028181a1",
+      "members": [
+        "models/original/initial_release_classifier.pt",
+        "models/original/server_best_cls_model_fold_3.pt",
+        "models/original/server_best_pretrain_fold3_epoch9.pt"
+      ]
+    },
+    {
+      "path": "resources-models-server_run.tar.gz",
+      "size_bytes": 42565838,
+      "sha256": "12258c35a420d461507baa4924a5315462e4c9e046ac2e2c4c853040bd9f8033",
+      "members": [
+        "models/server_run/classifier.pt",
+        "models/server_run/pretrain.pt",
+        "models/server_run/projection.pt"
+      ]
+    },
+    {
+      "path": "resources-provenance.tar.gz",
+      "size_bytes": 704,
+      "sha256": "8a946b2ebff67639c0771e7b519a9852b3cb3b08388538ea5d8852f254f40580",
+      "members": [
+        "provenance/sources.json",
+        "provenance/training_statistics.json"
+      ]
+    },
+    {
+      "path": "resources-splits.tar.gz",
+      "size_bytes": 3413,
+      "sha256": "96108b678b0439a1b30fcf317931fee3b7b5257d347f3c24a8efb798778a2a61",
+      "members": [
+        "splits/cpu_smoke/README.md",
+        "splits/cpu_smoke/README.zh-CN.md",
+        "splits/cpu_smoke/manifest.json",
+        "splits/cpu_smoke/pairs.csv",
+        "splits/cpu_smoke/splits.json"
+      ]
+    },
+    {
+      "path": "resources-training.tar.gz",
+      "size_bytes": 61171929,
+      "sha256": "29ab35c0932ea2cd720656efdd31190d65c0d6bf77ccd654011ec42f21a55c6c",
+      "members": [
+        "training/SH_SV_feature_with_vectors.csv",
+        "training/SH_SV_feature_with_vectors_0.5.csv"
+      ]
+    }
+  ]
+}

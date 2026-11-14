@@ -1,0 +1,8 @@
+# Pair with --resources-dir. Architecture and encoding come from classifier.pt.
+run:
+  device: cpu
+predict:
+  batch_size: 8
+data:
+  esm:
+    batch_size: 2

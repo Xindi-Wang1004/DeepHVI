@@ -1,1 +1,0 @@
-The file "pytorch_model.bin" is missing here. Please download it from this website https://github.com/alibaba/LucaProt/tree/master/models/rdrp_40_extend/protein/binary_class/sefn/20230201140320/checkpoint-100000， and place it in this folder.

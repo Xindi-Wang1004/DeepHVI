@@ -1,0 +1,34 @@
+# CPU demo: synthetic data and the deterministic hash encoder.
+#
+# The hash backend is k-mer feature hashing, not a protein language model.
+# Demo metrics validate that the pipeline runs; they are not biological
+# results and must not be compared with the paper.
+
+run:
+  name: demo
+  seed: 42
+  deterministic: true
+  device: cpu
+  output_dir: runs
+
+data:
+  esm:
+    backend: hash
+    model: hash
+    pooling: masked_mean
+  splits:
+    protocol: paper
+    n_folds: 3
+    test_fraction: 0.2
+    seed: 42
+
+train_pretrain:
+  epochs: 1
+  batch_size: 16
+  lr: 1.0e-4
+
+train_classifier:
+  epochs: 2
+  batch_size: 16
+  lr: 1.0e-4
+  monitor: val_auc
