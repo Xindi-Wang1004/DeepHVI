@@ -6,6 +6,7 @@
 
 - [使用说明](usage.md)
 - [数据与划分](data.md)
+- [参考序列下载与处理](reference-sequences.md)
 - [资源说明](resources.md)
 - [模型权重](checkpoints.md)
 - [编码与复现约定](reproducibility.md)

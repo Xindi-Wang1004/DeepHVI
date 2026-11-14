@@ -8,11 +8,11 @@ DeepHVI pairs human and viral proteins using interaction records from the [Human
 
 Cite HVIDB as: Yang X, Lian X, Fu C, Wuchty S, Yang S, Zhang Z. *HVIDB: a comprehensive database for human-virus protein-protein interactions*. Briefings in Bioinformatics, 2021, 22:832–844. [doi:10.1093/bib/bbaa425](https://doi.org/10.1093/bib/bbaa425). Use UniProt's [official citation guidance](https://www.uniprot.org/help/publications) for its sequences.
 
-UniProt's copyrightable database content is covered by [CC BY 4.0](https://www.uniprot.org/help/license). HVIDB compiles multiple public sources and does not state a unified dataset license in its reviewed pages or download table. Preserve source attribution and applicable upstream terms; the project's MIT license does not relicense these data. See [Licensing](licensing.md).
+UniProt database content uses [CC BY 4.0](https://www.uniprot.org/help/license). HVIDB compiles records from several databases and publications; attribution follows those original sources. See [Licensing](licensing.md) for the terms and notices associated with the distributed materials.
 
-Original database versions, download dates, the complete ID mapping, and unmatched-record lists are unavailable. Checksums fix the distributed snapshot, but a fresh download from today's databases may not reproduce identical rows.
+The distributed tables are identified by their file checksums. Their original database versions, download dates and complete identifier mappings are unavailable; use the packaged snapshot for experiments that depend on these exact rows.
 
-The [Baidu distribution copy](https://pan.baidu.com/s/1Ygk06WfLfOzHvYW7N4y6qQ), extraction code `g9cn`, is the authors' assembled data archive rather than an official HVIDB or UniProt endpoint. The same archive is distributed as `data/archives/data.7z` after resource extraction.
+The authors’ assembled data archive is available from the [Baidu distribution copy](https://pan.baidu.com/s/1Ygk06WfLfOzHvYW7N4y6qQ), extraction code `g9cn`, and as `data/archives/data.7z` after resource extraction.
 
 ## Distributed tables
 
@@ -29,6 +29,10 @@ Run `python3 scripts/resource_packages.py extract` from the repository root to r
 
 The two training files contain 28,931 and 34,195 unique sequence pairs, respectively. The second file's row counts describe the original table before deduplication. Detailed statistics are in `data/provenance/training_statistics.json`; content checksums are in `data/manifest.json`. Published paper totals and the available training tables use different counting scopes.
 
+## Public retrieval references
+
+The [reference workflow](reference-sequences.md) downloads the complete human RefSeq `GCF_000001405.40` and viral UniProtKB `taxonomy_id:10239` FASTA files. Each side is deduplicated by full sequence, with the original accessions and headers retained in a lookup catalog. `--reference-source both` prepares these libraries alongside training and records their indices for subsequent retrieval.
+
 ## CSV schema
 
 The canonical columns are `pair_id,human_seq,viral_seq,label`. Sequence column aliases include `S_H,S_V` and `seq_a,seq_b`. `pair_id` is optional; otherwise a stable ID is generated from the sequences. Classification training requires 0/1 labels; prediction can omit labels. Override names with `--human-col`, `--viral-col`, `--label-col`, and `--pair-id-col`.
@@ -38,7 +42,7 @@ pair_id,human_seq,viral_seq,label
 example_1,ACDEFGHIKLMNPQRSTVWY,MKTIIALSYIFCLVFAD,1
 ```
 
-Whitespace and alignment gaps are removed, letters are uppercased, and a trailing stop marker is removed. Ambiguous residues receive zero AAindex descriptors. AAindex features use the first 100 residues and 12 properties per residue, producing 1,200 values with zero padding for short sequences. The packaged AAindex table is used to recompute descriptors rather than trusting embedded CSV vector strings.
+Whitespace and alignment gaps are removed, letters are uppercased, and a trailing stop marker is removed. Ambiguous residues receive zero AAindex descriptors. AAindex features use the first 100 residues and 12 properties per residue, producing 1,200 values with zero padding for short sequences. Descriptors are computed from the packaged AAindex table.
 
 ```bash
 uv run deephvi inspect-data --input data/training/SH_SV_feature_with_vectors_0.5.csv --count
@@ -58,6 +62,8 @@ The original archive has a top-level `data/` directory. Extraction records repai
 | `server_historical` | Shuffled ten-fold server convention with an inner 90/10 split |
 | `legacy` | Earlier unshuffled ten-fold convention; validation also serves as test |
 
-Modern `paper` and `group` commands deduplicate exact full-sequence pairs, preserve the first row, and reject conflicting labels. The classification table becomes 34,195 pairs. Rebuild features and splits together when migrating from older artifacts. Pair-level splits can share individual proteins; connected-component grouping keeps each side's proteins together. Species grouping separates species groups and does not guarantee human-protein separation.
+The `paper` and `group` protocols deduplicate exact full-sequence pairs, keeping the first row and checking label consistency. This gives 34,195 pairs for the classification table. Rebuild features and splits together when migrating from older artifacts.
 
-Historical protocols preserve original order and duplicates for comparison; they do not provide the same independent evaluation as modern deduplicated splits. Their staged commands must use the same historical configuration. Every split manifest records protein and pair overlap; `--strict-leakage` rejects cross-partition protein overlap. Prediction retains duplicate input rows and IDs.
+Choose the grouping method to match the experiment: `paper` separates pairs, `group` with `union_find` keeps connected proteins together, and `group` with `virus_species` separates virus species. Species groups can share human proteins.
+
+Historical protocols retain the original row order and duplicates for comparisons with earlier runs. Use the matching historical configuration throughout staged commands. Split manifests report pair and protein overlaps; add `--strict-leakage` when the experiment requires protein separation. Prediction keeps the input row order, duplicate rows and IDs.

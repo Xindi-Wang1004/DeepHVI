@@ -2,7 +2,7 @@
 
 [简体中文](zh-CN/validation.md) · [Documentation index](README.md)
 
-Validation checks software behavior, resource consistency, and compatibility with the released models. It does not establish reproduction of the paper's full experimental metrics. Run the commands below against the revision you intend to use; historical development reports are not a substitute for current checks.
+Run these checks from the repository root to verify the code, resources, and installed package.
 
 ## Routine checks
 
@@ -15,6 +15,8 @@ OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 uv run pytest -q
 ```
 
 The public-tree audit checks tracked files and unignored new files, rejecting internal documents, model files outside approved archives, and other generated artifacts. Tests cover record parsing and deduplication, splits and fold provenance, Gaussian fusion, metrics, feature compatibility, archive handling, resume state, retrieval, and CLI workflows.
+
+Reference integration tests use local HTTP fixtures and the hash demo encoder to exercise downloads, index reuse, recovery, training records, staged inheritance and checkpoint-based retrieval. They compare model parameters, pair/split fingerprints and classification outputs across runs with and without reference preparation.
 
 ## Real resources
 
@@ -37,8 +39,6 @@ python3 scripts/verify_release.py --python 3.12 --out dev-docs/validation/releas
 
 This requires `uv` on PATH and enough space for another extracted resource copy and environment. The script audits public files, creates an independent snapshot, restores resources, installs locked dependencies, builds and installs the wheel, and verifies imports from `site-packages`. It then runs tests, resource audits, real ESM-2 server prediction, and an 18-pair three-fold training check with one epoch per stage.
 
-Choose a new `--out` directory for each run: nonempty output directories are rejected. Temporary files, logs, builds, and the report stay under that ignored directory. CI tests Python 3.10 and 3.12 and runs installed-wheel acceptance in a separate job.
+Choose a new `--out` directory for each run. Temporary files, logs, builds and the report are saved together there. CI tests Python 3.10 and 3.12 and runs installed-wheel acceptance in a separate job.
 
-## Interpretation
-
-Hash-backed checks exercise the pipeline without a protein language model. Small real-ESM runs verify that training and inference execute with the bundled resources. CPU resume tests compare uninterrupted and resumed parameters in a fixed environment. Full training metrics, CUDA reproducibility, Windows/macOS behavior, and every minimum dependency combination need separate validation. Dataset reconstruction is also limited by unavailable original database snapshots; see [Data](data.md).
+The checks run on Linux CPU and cover the hash demo, real ESM-2 inference and training, and parameter consistency after resuming.

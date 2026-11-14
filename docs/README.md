@@ -6,6 +6,7 @@ These guides describe the public implementation and distributed resources. Start
 
 - [Usage](usage.md)
 - [Data and splits](data.md)
+- [Reference sequence download and preparation](reference-sequences.md)
 - [Resource archives](resources.md)
 - [Models and checkpoints](checkpoints.md)
 - [Encoding and reproducibility](reproducibility.md)

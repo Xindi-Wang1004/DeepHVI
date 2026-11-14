@@ -53,6 +53,10 @@ uv run deephvi predict --resources-dir data \
 
 服务器编码使用 1024 token（含 BOS/EOS），按 attention mask 求均值且保留特殊 token，再使用保存的投影。历史 512-token 缓存中超过 510 个残基的条目首次使用时重算，磁盘原缓存保持不变。长度调整没有重新训练模型，因此长序列预测可能与历史输出不同。
 
+## 公共参考资源
+
+参考序列流程将下载和处理产物保存在 `data/reference/`。训练与推理在此共享原始 FASTA、accession 目录和按编码器区分的索引，已记录的索引应与对应 checkpoint 一起保留。完整库需要在上述模型归档之外安排额外磁盘、内存和编码时间。命令与版本管理见[参考序列流程](reference-sequences.md)。
+
 ## 构建压缩包
 
 对已有且通过校验的资源目录运行：

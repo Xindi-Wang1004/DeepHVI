@@ -14,6 +14,13 @@ run:
   deterministic: true
   device: auto
 
+# Optional public galleries for subsequent retrieval; no additional training loss.
+# Set sources to [human, viral] or pass --reference-source both.
+references:
+  sources: []
+  dir: data/reference
+  overwrite: false
+
 data:
   pairs: null
   max_seq_len: 1024

@@ -142,6 +142,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "threshold": 0.5,
     },
     "predict": {"batch_size": 32},
+    # Public galleries are optional retrieval resources, separate from labelled pairs.
+    "references": {"sources": [], "dir": "data/reference", "overwrite": False},
     "retrieval": {
         "top_k": 5,
         "mode": "sequence",
@@ -232,6 +234,15 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("loss.modality_weights must contain four values")
     if config["loss"].get("logvar_param") not in {"logvar", "logstd"}:
         raise ValueError("loss.logvar_param must be 'logvar' or 'logstd'")
+    references = config.get("references", {})
+    sources = references.get("sources", [])
+    if (not isinstance(sources, list) or any(not isinstance(side, str) or side not in {"human", "viral"} for side in sources)
+            or len(sources) != len(set(sources))):
+        raise ValueError("references.sources must be a list of distinct human/viral sources")
+    if not isinstance(references.get("dir", "data/reference"), str) or not references.get("dir", "data/reference"):
+        raise ValueError("references.dir must be a nonempty path string")
+    if not isinstance(references.get("overwrite", False), bool):
+        raise ValueError("references.overwrite must be a boolean")
 
 
 def config_for_json(config: dict[str, Any]) -> dict[str, Any]:

@@ -56,6 +56,11 @@ def reproduce(pairs, output, *, config, limit=None, epochs=None):
     (output / "config.yaml").write_text(yaml.safe_dump(config, sort_keys=False))
     write_json(output / "environment.json", environment_info())
     bundle = prepare_feature_bundle(records, config=config, output_dir=output / "features", device=str(device))
+    from .training.references import prepare_training_references, record_training_references
+
+    references = prepare_training_references(config, device=str(device))
+    record_training_references(config, references, output)
+    (output / "config.yaml").write_text(yaml.safe_dump(config, sort_keys=False))
     paths, summaries = {}, {}
     for index in range(assignment.n_folds):
         config["run"]["training_fold"] = index
@@ -89,5 +94,7 @@ def reproduce(pairs, output, *, config, limit=None, epochs=None):
     summary = {"n_pairs": len(records), "n_folds": assignment.n_folds, "limited_test": limit is not None or epochs is not None,
                "scope": "Code verification only; not paper results" if limit or epochs else "Reproduction run",
                "output": str(output), "checkpoint_map": str(output / "checkpoint_map.json")}
+    if references:
+        summary["references"] = str(output / "references.json")
     write_json(output / "summary.json", summary)
     return summary

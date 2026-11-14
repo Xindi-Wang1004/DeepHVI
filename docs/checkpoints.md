@@ -22,7 +22,7 @@ uv run deephvi predict --resources-dir data --pairs input.csv --out predictions.
 
 The CLI constructs the architecture identified by checkpoint `model_name`. Server inference uses its separately saved projection; newly trained refactored models contain their own projection. The server pretraining architecture differs from the refactored training architecture: `train-classifier --pretrain-checkpoint` expects a checkpoint produced by the matching `train-pretrain` implementation.
 
-Refactored `deephvi` and `deephvi_pretrain` checkpoints require `model_revision: 2`, which uses inverse-variance Gaussian fusion (`exp(-logvar)`). Older refactored checkpoints are rejected and require retraining. Editing metadata cannot repair learned weights. Historical `server_tmonet_v1` inference has its own compatibility graph and is unaffected by this revision.
+Current `deephvi` and `deephvi_pretrain` checkpoints use `model_revision: 2`, with inverse-variance Gaussian fusion (`exp(-logvar)`). Models from an earlier revision need retraining with the current implementation. Historical `server_tmonet_v1` checkpoints use their dedicated inference architecture.
 
 ## Convert original checkpoints
 
@@ -36,7 +36,7 @@ uv run deephvi export-legacy \
   --out runs/server-export --allow-unsafe-pickle
 ```
 
-The exporter writes a state-dict checkpoint, encoding settings, resource fingerprints, and a numeric comparison report. Compatibility classes are included in the installed `deephvi.compat` package. Exporting an earlier checkpoint without `--projection` produces a tensor inventory rather than assuming server compatibility. Normal prediction uses `weights_only=True` checkpoints.
+The exporter writes a state-dict checkpoint, encoding settings, resource fingerprints and a numerical comparison report. Prediction loads the exported checkpoint with `weights_only=True`; compatibility classes are included in `deephvi.compat`. For an earlier checkpoint, export without `--projection` to inspect its tensor inventory first.
 
 ## New training and exact resume
 
@@ -52,7 +52,13 @@ uv run deephvi train-classifier --config configs/default.yaml \
 
 Replace `PATH_TO_LAST_PT` with the actual saved model path. `--epochs 10` means a total of ten epochs: a run stopped after epoch five continues with six through ten. State is bound to the model's epoch and SHA-256, and stores best score, early-stopping count, history, Python/NumPy/CPU/CUDA RNG states, and DataLoader generator states. Resuming into a new run directory copies the original best checkpoint so that later inferior epochs cannot replace it. Runs already stopped by early stopping return the saved best result.
 
-Older incomplete state files cannot provide exact resume. Parameter-identical CPU resume is covered by tests under unchanged inputs, configuration, and environment; cross-environment and CUDA equivalence require separate validation.
+Keeping these files together restores the optimizer, random generators and model selection state. CPU tests compare resumed and uninterrupted model parameters.
+
+## Reference libraries recorded during training
+
+Training with `--reference-source human|viral|both` saves a `references.json` file and adds `reference_libraries` to each checkpoint. These records identify the source versions, sequence and encoder fingerprints, index locations and completion records. Classification training inherits them from its pretraining checkpoint, and resume continues with the same library versions. Keep the recorded indices with the run’s resources.
+
+Use `retrieve` or `generate` with `--checkpoint PATH --target human|viral` to load the saved encoder settings and search the recorded index. After moving an index directory, add `--index NEW_DIR`. Commands, file layouts and version management are in [Reference sequences](reference-sequences.md).
 
 ## AAindex reference recovery
 

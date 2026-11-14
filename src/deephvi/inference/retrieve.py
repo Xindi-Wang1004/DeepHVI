@@ -49,9 +49,33 @@ class ReferenceIndex:
         embeddings_path = path / "embeddings.npy"
         if not metadata_path.exists() or not embeddings_path.exists():
             raise RetrievalError(f"Not a reference index: {path}")
+        completion = path / "pipeline.json"
+        saved = None
+        if completion.exists():
+            from ..data.reference_download import file_digest
+
+            saved = read_json(completion)
+            if set(saved.get("files", {})) != {"metadata.json", "embeddings.npy"}:
+                raise RetrievalError("Reference index completion receipt is invalid")
+            for name, entry in saved["files"].items():
+                artifact = path / name
+                if (artifact.stat().st_size != entry["bytes"]
+                        or file_digest(artifact) != entry["sha256"]):
+                    raise RetrievalError(f"Reference index fingerprint mismatch: {artifact}; use --overwrite to rebuild")
         metadata = read_json(metadata_path)
         if metadata.get("index_version") != INDEX_VERSION:
             raise RetrievalError(f"Unsupported index version in {path}")
+        if metadata.get("reference"):
+            from ..data.features import encoding_identity
+
+            if saved is None:
+                raise RetrievalError("Public reference index is incomplete: pipeline.json is missing")
+            identity = saved.get("identity", {})
+            reference = metadata["reference"]
+            if (identity.get("sequence_backend") != encoding_identity(metadata["sequence_backend"])
+                    or any(identity.get(key) != reference.get(key)
+                           for key in ("source", "source_sha256", "fasta_sha256"))):
+                raise RetrievalError("Public reference index metadata differs from its completion receipt")
         embeddings = np.load(embeddings_path)
         count = len(metadata["ids"])
         if (embeddings.ndim != 2 or embeddings.shape != (count, metadata["dim"])

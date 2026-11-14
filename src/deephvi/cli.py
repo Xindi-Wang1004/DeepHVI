@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 
 from . import __version__
-from .checkpoints import CheckpointError
+from .checkpoints import CheckpointError, load_checkpoint
 from .config import (
     apply_overrides,
     config_for_json,
@@ -37,6 +37,7 @@ from .data.legacy import (
     write_pairs_csv,
 )
 from .data.negatives import ensure_negatives
+from .data.reference_download import ReferenceDataError
 from .data.schema import PairRecord
 from .data.server import SERVER_MAX_LENGTH
 from .data.splits import LeakageError, SplitError, load_splits, make_splits, save_splits
@@ -185,6 +186,7 @@ def build_parser() -> argparse.ArgumentParser:
     predict.add_argument("--limit", type=int, default=None)
     predict.add_argument("--out", type=Path, default=Path("predictions.csv"))
     predict.add_argument("--allow-backend-mismatch", action="store_true")
+    _add_reference_preparation_options(predict)
     _add_column_options(predict)
     predict.set_defaults(func=cmd_predict)
 
@@ -195,10 +197,18 @@ def build_parser() -> argparse.ArgumentParser:
         command = subparsers.add_parser(name, help=help_text)
         _add_common(command)
         command.add_argument("--pairs", type=Path, required=True)
-        command.add_argument("--reference", type=Path, default=None, help="Reference FASTA")
-        command.add_argument("--index", type=Path, default=None, help="Prebuilt reference index")
+        command.add_argument("--checkpoint", type=Path, default=None,
+                             help="Use checkpoint encoding settings and recorded reference indices")
+        reference_inputs = command.add_mutually_exclusive_group()
+        reference_inputs.add_argument("--reference", type=Path, default=None, help="Reference FASTA")
+        reference_inputs.add_argument("--index", type=Path, default=None, help="Prebuilt reference index")
+        reference_inputs.add_argument("--reference-source", choices=["human", "viral"],
+                                      help="Automatically download, prepare and index a full public gallery")
+        command.add_argument("--reference-dir", type=Path, default=None,
+                             help="Cache root for public references (default: references.dir or data/reference)")
         command.add_argument("--index-out", type=Path, default=None)
-        command.add_argument("--target", default="viral", choices=["human", "viral"])
+        command.add_argument("--target", default=None, choices=["human", "viral"],
+                             help="Side to search (default: reference-source, otherwise viral)")
         command.add_argument("--top-k", type=int, default=None)
         command.add_argument("--limit", type=int, default=None)
         command.add_argument("--out", type=Path, default=Path("retrieval.json"))
@@ -238,6 +248,7 @@ def build_parser() -> argparse.ArgumentParser:
     reproduce.add_argument("--out", type=Path, required=True)
     reproduce.add_argument("--limit", type=int)
     reproduce.add_argument("--epochs", type=int, help="Override both training stages for smoke tests")
+    _add_reference_preparation_options(reproduce)
     reproduce.set_defaults(func=cmd_reproduce)
 
     recompute = subparsers.add_parser("recompute-metrics", help="Recompute metrics from saved sample probabilities")
@@ -265,6 +276,28 @@ def _add_training_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--resume", type=Path, default=None)
     parser.add_argument("--run-name", default=None)
+    _add_reference_preparation_options(parser)
+
+
+def _add_reference_preparation_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--reference-source", choices=["human", "viral", "both"],
+                        help="Prepare public reference indices alongside this workflow")
+    parser.add_argument("--reference-dir", type=Path, default=None,
+                        help="Public reference cache root (default: references.dir or data/reference)")
+    parser.add_argument("--reference-overwrite", action="store_true", default=None,
+                        help="Rebuild reference indices from verified downloaded sequences")
+
+
+def _reference_preparation_config(config, args):
+    settings = config.setdefault("references", {"sources": [], "dir": "data/reference", "overwrite": False})
+    source = getattr(args, "reference_source", None)
+    if source:
+        settings["sources"] = ["human", "viral"] if source == "both" else [source]
+    if getattr(args, "reference_dir", None) is not None:
+        settings["dir"] = str(args.reference_dir)
+    if getattr(args, "reference_overwrite", None) is not None:
+        settings["overwrite"] = args.reference_overwrite
+    return config
 
 
 # ---------------------------------------------------------------------------
@@ -334,7 +367,7 @@ def _config_from_payload(payload: dict[str, Any], args: argparse.Namespace) -> d
         from .config import load_yaml
 
         resolved = load_yaml(args.config)
-        for section in ("data", "eval", "predict", "retrieval", "run", "resources"):
+        for section in ("data", "eval", "predict", "retrieval", "run", "resources", "references"):
             config[section] = deep_merge(config.get(section, {}), resolved.get(section, {}))
     config = apply_overrides(config, list(getattr(args, "overrides", []) or []))
     if payload.get("model_name") == "server_tmonet_v1":
@@ -697,13 +730,31 @@ def cmd_make_splits(args: argparse.Namespace) -> int:
 
 
 def _training_setup(args: argparse.Namespace):
-    config = _config(args)
+    config = _reference_preparation_config(_config(args), args)
     device = resolve_device(config["run"]["device"])
     seed_everything(int(config["run"]["seed"]), deterministic=config["run"]["deterministic"])
     bundle = FeatureBundle.load(args.bundle)
     assignment = load_splits(args.splits)
     _check_bundle_matches_splits(bundle, assignment)
-    verify_bundle_encoding(bundle, config, device=str(device))
+    backend = verify_bundle_encoding(bundle, config, device=str(device))
+    from .training.references import prepare_training_references, record_training_references
+
+    initialization = args.resume or getattr(args, "pretrain_checkpoint", None)
+    if not initialization and args.command == "train-classifier":
+        initialization = config["train_classifier"].get("pretrain_checkpoint")
+    inherited = load_checkpoint(initialization).get("reference_libraries", {}) if initialization else None
+    if args.resume and inherited and config.get("references", {}).get("overwrite"):
+        raise CheckpointError("Resume keeps reference indices pinned; omit --reference-overwrite")
+    references = prepare_training_references(config, device=str(device), backend=backend,
+                                             inherited=inherited)
+    if args.resume and inherited and references != inherited:
+        from .inference.reference_pipeline import verify_recorded_reference
+
+        if set(references) != set(inherited):
+            raise CheckpointError("Resume reference sources differ from the saved checkpoint")
+        for side, record in references.items():
+            verify_recorded_reference(ReferenceIndex.load(record["index"]), inherited[side])
+    del backend
     # Constructing a verification encoder may consume RNGs; model initialization
     # must depend on the run seed, not whether cached features were checked.
     seed_everything(int(config["run"]["seed"]), deterministic=config["run"]["deterministic"])
@@ -715,6 +766,8 @@ def _training_setup(args: argparse.Namespace):
     run_dir = RunDirectory(
         config["run"]["output_dir"], name=config["run"]["name"], config=config_for_json(config)
     )
+    record_training_references(config, references, run_dir.root)
+    (run_dir.root / "resolved_config.yaml").write_text(yaml.safe_dump(config_for_json(config), sort_keys=True))
     setup_logging(getattr(args, "log_level", "INFO"), run_dir.root / "run.log")
     return config, device, bundle, assignment, fold, run_dir
 
@@ -873,23 +926,60 @@ def cmd_predict(args: argparse.Namespace) -> int:
         )
         frame["prediction"] = (frame["probability"] >= threshold).astype(int)
 
+    preparation = _reference_preparation_config(initial, args).get("references", {})
+    summary = {"n_pairs": len(frame), "output": str(args.out)}
+    if preparation.get("sources"):
+        from .training.references import prepare_training_references
+
+        config["references"] = preparation
+        references = prepare_training_references(config, device=str(device))
+        reference_path = args.out.with_name(args.out.name + ".references.json")
+        write_json(reference_path, references)
+        summary["references"] = str(reference_path)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     frame.to_csv(args.out, index=False)
-    print(json.dumps({"n_pairs": len(frame), "output": str(args.out)}, indent=2))
+    print(json.dumps(summary, indent=2))
     return 0
 
 
 def _retrieve_command(args: argparse.Namespace, *, generate: bool) -> int:
-    config = _config(args)
+    payload = load_checkpoint(args.checkpoint) if args.checkpoint else None
+    config = _config_from_payload(payload, args) if payload else _config(args)
     device = resolve_device(config["run"]["device"])
     table = _read_pairs(args.pairs, args, config, require_label=False, limit=args.limit)
     top_k = int(args.top_k if args.top_k is not None else config["retrieval"]["top_k"])
+    if top_k <= 0:
+        raise ValueError("top_k must be positive")
+    target = args.target or args.reference_source or "viral"
+    if args.reference_source and args.reference_source != target:
+        raise ValueError("--reference-source must match --target")
+    recorded = (payload or {}).get("reference_libraries", {})
+    selected_record = recorded.get(target)
+    source = args.reference_source
+    if (not source and not (args.index or args.reference or selected_record)
+            and target in config.get("references", {}).get("sources", [])):
+        source = target
+    if not (args.index or args.reference or source or selected_record):
+        raise ValueError("Provide --reference FASTA, --index directory or --reference-source human|viral")
+    if args.index and args.index_out:
+        raise ValueError("--index-out cannot be used with --index")
 
-    if args.index:
-        index = ReferenceIndex.load(args.index)
-        from .data.sequence_backend import build_backend
+    from .data.sequence_backend import build_backend
 
-        backend = build_backend(config, device=str(device))
+    backend = build_backend(config, device=str(device))
+    if payload:
+        check_backend_matches(payload, backend)
+
+    if source:
+        from .inference.reference_pipeline import ensure_public_reference
+
+        index = ensure_public_reference(
+            source, args.reference_dir or Path(config.get("references", {}).get("dir", "data/reference")),
+            config=config, device=str(device),
+            backend=backend, index_dir=args.index_out, overwrite=args.overwrite,
+        )
+    elif args.index or (selected_record and not args.reference):
+        index = ReferenceIndex.load(args.index or selected_record["index"])
         trained_backend = index.spec.get("backend")
         if trained_backend and trained_backend != backend.name:
             raise RetrievalError(
@@ -897,24 +987,28 @@ def _retrieve_command(args: argparse.Namespace, *, generate: bool) -> int:
                 f"but the current backend is {backend.name!r}."
             )
     else:
-        if not args.reference:
-            raise ValueError("Provide --reference FASTA or --index directory")
         index_dir = args.index_out or (Path(args.out).parent / "reference_index")
         index = build_reference_index(
             read_fasta(args.reference),
             index_dir,
             config=config,
             device=str(device),
+            backend=backend,
             overwrite=args.overwrite,
         )
-        from .data.sequence_backend import build_backend
 
-        backend = build_backend(config, device=str(device))
+    reference = index.manifest.get("reference")
+    if reference and reference["source"] != target:
+        raise RetrievalError("Public reference index source must match --target")
+    if selected_record and not args.reference:
+        from .inference.reference_pipeline import verify_recorded_reference
+
+        verify_recorded_reference(index, selected_record)
 
     hits = retrieve_for_records(
         table.records,
         index,
-        target=args.target,
+        target=target,
         config=config,
         device=str(device),
         backend=backend,
@@ -922,12 +1016,12 @@ def _retrieve_command(args: argparse.Namespace, *, generate: bool) -> int:
     )
     rows = []
     for record, hit_list in zip(table.records, hits, strict=False):
-        query = record.human_seq if args.target == "human" else record.viral_seq
+        query = record.human_seq if target == "human" else record.viral_seq
         for hit in hit_list:
             rows.append(
                 {
                     "pair_id": record.pair_id,
-                    "target": args.target,
+                    "target": target,
                     "query_sequence": query,
                     "rank": hit["rank"],
                     "hit_id": hit["id"],
@@ -943,9 +1037,12 @@ def _retrieve_command(args: argparse.Namespace, *, generate: bool) -> int:
                 "note": "Retrieval-based candidate generation; no decoder weights were released."
                 if generate
                 else "Cosine retrieval results.",
-                "target": args.target,
+                "target": target,
                 "top_k": top_k,
+                "index": str(index.path),
                 "results": rows,
+                **({"reference": index.manifest["reference"]}
+                   if "reference" in index.manifest else {}),
             },
         )
     else:
@@ -953,7 +1050,8 @@ def _retrieve_command(args: argparse.Namespace, *, generate: bool) -> int:
 
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(rows).to_csv(args.out, index=False)
-    print(json.dumps({"n_queries": len(table.records), "top_k": top_k, "output": str(args.out)}, indent=2))
+    print(json.dumps({"n_queries": len(table.records), "top_k": top_k,
+                      "index": str(index.path), "output": str(args.out)}, indent=2))
     return 0
 
 
@@ -1013,7 +1111,8 @@ def cmd_verify_resources(args):
 def cmd_reproduce(args):
     from .reproduction import reproduce
 
-    result = reproduce(args.pairs, args.out, config=_config(args), limit=args.limit, epochs=args.epochs)
+    config = _reference_preparation_config(_config(args), args)
+    result = reproduce(args.pairs, args.out, config=config, limit=args.limit, epochs=args.epochs)
     print(json.dumps(result, indent=2))
     return 0
 
@@ -1047,6 +1146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         LegacyExportError,
         PairTableError,
         RetrievalError,
+        ReferenceDataError,
         SplitError,
         FileNotFoundError,
         ValueError,

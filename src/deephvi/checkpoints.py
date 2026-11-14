@@ -59,6 +59,8 @@ def save_checkpoint(
     }
     if extra:
         payload.update(extra)
+    if config.get("run", {}).get("reference_libraries"):
+        payload["reference_libraries"] = config["run"]["reference_libraries"]
 
     temp = path.with_suffix(path.suffix + ".tmp")
     torch.save(payload, temp)

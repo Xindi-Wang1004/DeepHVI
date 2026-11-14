@@ -53,6 +53,10 @@ Path precedence is explicit CLI option, explicit configuration, then resource-di
 
 The server encoder uses 1024 tokens including BOS/EOS, attention-mask mean pooling including those special tokens, and its saved projection. Historical 512-token cache entries longer than 510 residues are recomputed on first use; the original cache file stays intact. Weights were not retrained for this limit, so long-sequence predictions can differ from historical outputs.
 
+## Public reference resources
+
+The reference workflow downloads and prepares libraries under `data/reference/`. Training and inference share the raw FASTA, accession catalogs and encoder-specific indices there. Keep recorded indices alongside the corresponding checkpoints. Full libraries use additional disk, memory and encoding time beyond the model archives described above. Commands and version management are in [Reference sequences](reference-sequences.md).
+
 ## Building archives
 
 For an existing verified resource directory:

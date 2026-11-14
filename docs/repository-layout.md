@@ -9,7 +9,7 @@
 | `src/deephvi/` | Maintained package, CLI, models, feature encoders, AAindex table, and checkpoint compatibility classes |
 | `configs/` | Training, inference, historical-comparison, and CPU profiles |
 | `tests/` | Unit/integration tests and small reference fixtures |
-| `scripts/` | Resource packaging, content auditing, and validation tools |
+| `scripts/` | Reference downloads and preparation, resource packaging, audits and validation |
 | `docs/` | English public guides; Chinese equivalents in `docs/zh-CN/` |
 | `data/` | Release archive files, inventories, and bilingual instructions at the root |
 | `.github/workflows/` | CI checks for supported Python versions and installed-wheel acceptance |
@@ -18,9 +18,9 @@ Run `python3 scripts/resource_packages.py extract` to restore local `data/traini
 
 ## Local development materials
 
-Store development notes, intermediate documents, review reports, original source copies, packaging specifications, and build outputs under `dev-docs/`. This directory is ignored and excluded from Python distributions. `AGENTS.md`, agent configuration files, notes, plans, and draft documents are also ignored. Public documentation must explain the released behavior without depending on local materials.
+Use `dev-docs/` for development notes, review reports, source copies, packaging specifications and build outputs. It is ignored by Git and excluded from Python distributions. Public guides live in `docs/`, and experiment output belongs in `runs/`.
 
-`.gitignore` does not remove files that Git already tracks. Before a release, use the public-tree audit to detect tracked private files as well as unignored new files. If a private file was tracked, remove only its index entry with `git rm --cached PATH` after preserving the local copy. Existing remote history requires separate handling; adding an ignore rule cannot rewrite it.
+The public-tree audit checks tracked files and new files before release. To move an already tracked development file into local storage, preserve its local copy and remove the index entry with `git rm --cached PATH`.
 
 ## Contribution checks
 
@@ -35,4 +35,4 @@ uv build --out-dir dev-docs/builds
 
 Keep both language versions aligned when changing public commands or behavior. Add regression coverage for behavioral fixes. Keep generated reports and experiment output local. The wheel contains `src/deephvi`; the source distribution uses an explicit public-file allowlist and private-file exclusions.
 
-The [validation guide](validation.md) explains installed-wheel acceptance. CI retains its standard job output; generated development reports are not uploaded as repository files or artifacts.
+The [validation guide](validation.md) describes installed-wheel acceptance and its reports. CI results are available in the job output.

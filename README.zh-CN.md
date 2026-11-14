@@ -19,14 +19,14 @@ uv sync --frozen --extra dev --extra data
 
 锁文件默认安装 CPU 版 PyTorch。CUDA 环境见[使用说明](docs/zh-CN/usage.md#cuda)。也可在虚拟环境中执行 `python -m pip install '.[data]'`，随后将命令中的 `uv run deephvi` 替换为 `deephvi`。
 
-## 无需模型资源的快速体验
+## CPU 快速体验
 
 ```bash
 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 uv run deephvi demo \
   --backend hash --n-pairs 30 --epochs 1 --device cpu --out runs/demo
 ```
 
-此命令使用合成配对，运行特征处理、训练、评估和检索。hash 编码器仅用于验证流程，其指标不代表生物学预测性能。
+此示例使用合成配对和确定性的 hash 编码器，在 CPU 上运行特征处理、训练、评估和检索。
 
 ## 恢复数据与预训练模型
 
@@ -38,7 +38,7 @@ python3 scripts/resource_packages.py extract
 uv run deephvi verify-resources --resources-dir data
 ```
 
-解压工具仅依赖 Python 标准库，会校验压缩包及解压内容。压缩包合计约 328 MiB，解压后约 1.76 GiB；考虑依赖、Git 历史和输出，建议预留至少 8 GiB 空间。文件用途及校验方法见[资源说明](docs/zh-CN/resources.md)。
+压缩包合计约 328 MiB，解压后约 1.76 GiB；考虑依赖、Git 历史和输出，建议预留至少 8 GiB 空间。文件用途及校验方法见[资源说明](docs/zh-CN/resources.md)，完整参考库需要额外存储空间。
 
 ## 预测相互作用
 
@@ -57,36 +57,55 @@ OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 uv run deephvi predict \
   --out runs/predictions.csv --device cpu
 ```
 
-输出包含样本 ID、序列、正类概率 `probability` 和标签 `prediction`，默认阈值为 0.5。输入顺序与重复行会保留。服务器模型使用配套 ESM-2、保存的 320→256 投影和兼容的序列缓存，新序列自动编码。
+输出 CSV 包含样本 ID、序列、互作概率 `probability` 和预测标签 `prediction`，默认阈值为 0.5。结果按输入顺序排列，保留重复行。模型会自动编码新序列，并复用已有的兼容特征缓存。
 
-编码上限为 1024 token，包含 BOS/EOS。历史缓存中按 512 token 截断的序列会按需重算。与历史结果对照前，请阅读[编码与复现约定](docs/zh-CN/reproducibility.md)。
+随附编码器最多使用 1024 token，包含 BOS/EOS。池化、投影和缓存设置见[编码与复现约定](docs/zh-CN/reproducibility.md)。
 
 ## 训练与评估
 
 ```bash
 uv run deephvi reproduce --resources-dir data --config configs/default.yaml \
-  --pairs data/training/SH_SV_feature_with_vectors_0.5.csv --out runs/experiment
+  --pairs data/training/SH_SV_feature_with_vectors_0.5.csv \
+  --reference-source both --reference-dir data/reference --out runs/experiment
 ```
 
-该命令依次检查数据、编码特征、保存划分、逐折训练，并评估各折选中的 checkpoint。现代协议先按完整序列配对去重，标签冲突时报错。默认 `paper` 协议保留 20% 测试集，对训练部分执行三折验证；配对层面的划分仍可能共享蛋白，跨蛋白泛化实验应使用 `group` 协议。
+该命令准备配对特征与数据划分、逐折训练，并评估选中的 checkpoint。默认 `paper` 协议保留 20% 测试集，在训练部分进行三折验证。按蛋白连接组分离数据的实验可使用 `group` 协议。
 
-分阶段训练与小型 CPU 示例见[使用说明](docs/zh-CN/usage.md)。实现中的重构假设已在文档中说明，小规模流程通过不代表论文完整指标已复现。
+`--reference-source both` 同时准备人类与病毒参考库，供后续检索使用。来源版本和索引位置保存在 `references.json` 及各 checkpoint 中。只训练时可省略参考库参数；分阶段的 `train-pretrain` 和 `train-classifier` 支持相同设置。
+
+分阶段训练与 CPU 示例见[使用说明](docs/zh-CN/usage.md)，编码与训练设置见[复现约定](docs/zh-CN/reproducibility.md)。
+
+## 生成与检索
+
+`retrieve` 和 `generate` 返回天然蛋白候选序列，按序列 embedding 的余弦相似度排序。完成上述训练后，可直接复用已记录的参考索引：
+
+```bash
+uv run deephvi generate --checkpoint runs/experiment/fold0/checkpoints/best.pt \
+  --pairs data/examples/inputs/new_pairs.csv --target viral --out runs/candidates.json
+```
+
+checkpoint 提供编码设置和索引记录，`--target human` 切换到人类侧。直接从公共数据开始时，选择 `--reference-source human` 或 `--reference-source viral`，命令会自动下载、处理并建索引。也可用 `--reference` 提供 FASTA，或用 `--index` 指定已有索引。
+
+人类参考库来自 NCBI RefSeq `GCF_000001405.40` 完整蛋白 FASTA，病毒库包含全部 UniProtKB `taxonomy_id:10239` 记录。两侧各自合并相同的完整序列，保留全部原始 accession。
+
+运行命令见[生成与检索说明](docs/zh-CN/usage.md#生成与检索)。
 
 ## 文档
 
 | 主题 | English | 简体中文 |
 | --- | --- | --- |
 | 安装与命令行流程 | [Usage](docs/usage.md) | [使用说明](docs/zh-CN/usage.md) |
+| 参考库下载、训练记录与推理复用 | [Reference sequences](docs/reference-sequences.md) | [参考序列流程](docs/zh-CN/reference-sequences.md) |
 | 数据来源、格式与划分 | [Data](docs/data.md) | [数据说明](docs/zh-CN/data.md) |
 | 资源压缩包与校验 | [Resources](docs/resources.md) | [资源说明](docs/zh-CN/resources.md) |
 | 模型与 checkpoint 兼容性 | [Checkpoints](docs/checkpoints.md) | [模型权重](docs/zh-CN/checkpoints.md) |
-| 编码与实验假设 | [Reproducibility](docs/reproducibility.md) | [复现约定](docs/zh-CN/reproducibility.md) |
+| 编码与实验设置 | [Reproducibility](docs/reproducibility.md) | [复现约定](docs/zh-CN/reproducibility.md) |
 | 仓库结构与贡献流程 | [Repository layout](docs/repository-layout.md) | [仓库布局](docs/zh-CN/repository-layout.md) |
 | 验证命令与范围 | [Validation](docs/validation.md) | [验证方法](docs/zh-CN/validation.md) |
 | 许可与署名 | [Licensing](docs/licensing.md) | [许可说明](docs/zh-CN/licensing.md) |
 
 ## 许可、引用与反馈
 
-自有代码和作者持有权利的 DeepHVI 权重采用 [MIT](LICENSE)。第三方模型与数据库内容遵循上游条款，详见[第三方声明](THIRD_PARTY_NOTICES.zh-CN.md)及[许可范围](docs/zh-CN/licensing.md)。相互作用记录来自 [HVIDB](https://zzdlab.com/hvidb/)，蛋白序列来自 [UniProt](https://www.uniprot.org/)，数据不因随代码发布而改用 MIT 许可。
+自有代码和作者持有权利的 DeepHVI 权重采用 [MIT](LICENSE)。其他来源的模型与数据遵循[第三方声明](THIRD_PARTY_NOTICES.zh-CN.md)和[许可说明](docs/zh-CN/licensing.md)中的条款。相互作用记录来自 [HVIDB](https://zzdlab.com/hvidb/)，序列来源包括 [UniProt](https://www.uniprot.org/) 和 NCBI RefSeq。
 
 使用实现时请引用上述 DeepHVI 论文；使用数据时同时引用[数据来源](docs/zh-CN/data.md)。反馈问题请提交 [GitHub Issue](https://github.com/Xindi-Wang1004/DeepHVI/issues)，附上运行命令、错误信息及相关 `deephvi doctor` 输出。
