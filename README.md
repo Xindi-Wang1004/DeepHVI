@@ -4,6 +4,8 @@
 
 DeepHVI predicts human–virus protein interactions by combining ESM-2 sequence embeddings with AAindex physicochemical descriptors. This repository provides pretrained inference, feature preparation, training, fold-specific evaluation, and protein similarity retrieval.
 
+**DeepHVI is now available on the web:** Visit [deephvi.omicbox.com](https://deephvi.omicbox.com) to predict human–virus protein interactions directly in your browser, with no local deployment required.
+
 Paper: *DeepHVI: A multimodal deep learning framework for predicting human-virus protein-protein interactions using protein language models.* **Biosafety and Health**, 2025, 7:257–266.
 
 ## Install

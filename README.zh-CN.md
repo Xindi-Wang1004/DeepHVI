@@ -4,6 +4,8 @@
 
 DeepHVI 结合 ESM-2 序列嵌入与 AAindex 理化性质描述符，预测人类—病毒蛋白相互作用。本仓库提供预训练模型预测、特征处理、训练、逐折评估及蛋白相似性检索。
 
+**DeepHVI Web 版已上线：** 访问 [deephvi.omicbox.com](https://deephvi.omicbox.com)，无需本地部署，即可在浏览器中预测人类—病毒蛋白相互作用。
+
 论文：*DeepHVI: A multimodal deep learning framework for predicting human-virus protein-protein interactions using protein language models.* **Biosafety and Health**, 2025, 7:257–266。
 
 ## 安装
